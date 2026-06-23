@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+tmp_trainer
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+model/checkpoints/checkpoint-*/
+!model/checkpoints/best_model/
+!model/checkpoints/best_model/**

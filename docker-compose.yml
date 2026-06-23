@@ -1,0 +1,51 @@
+services:
+
+  api:
+    build: .
+    container_name: adversarialshield-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - CHECKPOINT_PATH=/app/model/checkpoints/best_model
+    volumes:
+      - "./model/checkpoints:/app/model/checkpoints:ro"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: adversarialshield-ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+      - CHECKPOINT_PATH=/app/model/checkpoints/best_model
+    volumes:
+      - "./model/checkpoints:/app/model/checkpoints:ro"
+    depends_on:
+      - api
+    command: streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0
+
+  redis:
+    image: redis:7-alpine
+    container_name: adversarialshield-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped

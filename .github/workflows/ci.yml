@@ -1,0 +1,53 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Format check with black
+        run: black --check .
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t adversarialshield:latest .
+
+      - name: Build Streamlit image
+        run: docker build -f Dockerfile.streamlit -t adversarialshield-ui:latest .
+
+      - name: Test Docker image starts
+        run: |
+          docker run -d --name test-api \
+            -e CHECKPOINT_PATH=/app/model/checkpoints/best_model \
+            -p 8000:8000 adversarialshield:latest
+          sleep 10
+          curl -f http://localhost:8000/health || exit 1
+          docker stop test-api
